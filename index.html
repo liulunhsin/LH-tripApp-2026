@@ -43,6 +43,42 @@
                 const dbItinerary = ref(db, 'itinerary');
                 const dbExpenses = ref(db, 'expenses');
 
+                const lang = vRef(localStorage.getItem('app_lang') || 'zh');
+// 語言字典
+const translations = {
+    zh: {
+        itinerary: '行程',
+        split: '分帳',
+        add: '新增',
+        total: '總支出',
+        rate: '匯率',
+        syncing: '同步中...',
+        placeholder_loc: '地點名稱',
+        settlement: '結算方案',
+        delete_confirm: '確定要刪除嗎？',
+        lang_toggle: 'English'
+    },
+    en: {
+        itinerary: 'Itinerary',
+        split: 'Split Bill',
+        add: 'Add',
+        total: 'Total',
+        rate: 'Rate',
+        syncing: 'Syncing...',
+        placeholder_loc: 'Location name',
+        settlement: 'Settlement',
+        delete_confirm: 'Are you sure to delete?',
+        lang_toggle: '繁中'
+    }
+};
+
+const t = (key) => translations[lang.value][key];
+
+const toggleLang = () => {
+    lang.value = lang.value === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('app_lang', lang.value);
+};
+
                 onMounted(() => {
                     // 1. 同步行程數據
                     onValue(dbItinerary, (snapshot) => {
@@ -154,6 +190,9 @@
         </div>
 
         <header class="p-6">
+            <button @click="toggleLang" class="text-[10px] border border-slate-200 px-2 py-1 rounded-full text-slate-400 hover:bg-slate-50 transition-colors uppercase tracking-widest">
+                {{ t('lang_toggle') }}
+            </button>
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl font-light tracking-tighter text-slate-800">Taiwan Trip <span class="text-[10px] text-emerald-600 ml-2">● LIVE</span></h1>
                 <button @click="addItem" class="lake-teal text-white p-2 rounded-full shadow-lg active:scale-90 transition-transform"><i data-lucide="plus"></i></button>
@@ -163,7 +202,7 @@
                 <div v-for="n in 7" :key="n" @click="selectedDay = n"
                      :class="selectedDay === n ? 'date-active shadow-md' : 'bg-slate-50 text-slate-300'"
                      class="flex-shrink-0 w-12 h-16 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer">
-                    <span class="text-[8px] uppercase">Day</span>
+                    {{ t('itinerary') }}
                     <span class="text-lg font-bold">{{n}}</span>
                 </div>
             </div>
@@ -176,7 +215,7 @@
                         <input type="time" v-model="item.time" @change="updateItem(item)" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg outline-none">
                         <button @click="deleteItem(item.id)" class="text-slate-200 group-hover:text-red-300 transition-colors">✕</button>
                     </div>
-                    <input v-model="item.loc" @blur="updateItem(item)" placeholder="輸入地點名稱" class="w-full text-base font-normal outline-none bg-transparent">
+                    <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('placeholder_loc')" class="w-full text-base font-normal outline-none bg-transparent">
                 </div>
             </div>
 
