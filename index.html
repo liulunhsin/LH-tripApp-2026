@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Taiwan Trip - Sync Pro</title>
+    <title>Taiwan Trip - Multilingual Sync</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -12,15 +12,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // ⚠️ 在這裡填入你剛剛複製的 Firebase Config ⚠️
+        // ⚠️ 請確保這裡填入你的 Firebase Config ⚠️
         const firebaseConfig = {
-            apiKey: "AIzaSyBYnROoZixE4LbeOlbxXCOs9TUUxHy8qn0",
-            authDomain: "taiwantrip2026-b1e8f.firebaseapp.com",
-            databaseURL: "https://taiwantrip2026-b1e8f-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "taiwantrip2026-b1e8f",
-            storageBucket: "taiwantrip2026-b1e8f.firebasestorage.app",
-            messagingSenderId: "692934699626",
-            appId: "1:692934699626:web:f86c1f01a864ee5391b813"
+            apiKey: "你的_API_KEY",
+            authDomain: "你的_PROJECT_ID.firebaseapp.com",
+            databaseURL: "你的_DATABASE_URL",
+            projectId: "你的_PROJECT_ID",
+            storageBucket: "你的_PROJECT_ID.appspot.com",
+            messagingSenderId: "你的_ID",
+            appId: "你的_APP_ID"
         };
 
         const fApp = initializeApp(firebaseConfig);
@@ -29,129 +29,85 @@
 
         createApp({
             setup() {
-                const lang = vRef('zh');
+                // --- 語言與介面設定 ---
+                const lang = vRef(localStorage.getItem('app_lang') || 'zh');
                 const activeTab = vRef('itinerary');
                 const selectedDay = vRef(1);
                 const isSyncing = vRef(true);
-                const exchangeRate = vRef(24.2); // 預設 1 SGD = 24.2 TWD
+                const exchangeRate = vRef(24.2);
                 
                 const itinerary = vRef([]);
                 const expenses = vRef([]);
                 const newExp = vRef({ name: '', amt: null, currency: 'TWD' });
 
-                // Firebase 引用位置
+                // 語言字典
+                const i18n = {
+                    zh: {
+                        title: '旅程日誌', sync: '同步中...', add: '新增', del_msg: '確定要刪除嗎？',
+                        loc_p: '地點名稱...', total: '總支出 (SGD)', rate: '預估匯率',
+                        payer: '付款人', amt: '金額', confirm: '確認新增', settle: '結算方案 (SGD)',
+                        day: '天', lang_btn: 'English'
+                    },
+                    en: {
+                        title: 'Travel Log', sync: 'Syncing...', add: 'Add', del_msg: 'Are you sure?',
+                        loc_p: 'Location...', total: 'Total (SGD)', rate: 'Est. Rate',
+                        payer: 'Payer', amt: 'Amount', confirm: 'Confirm', settle: 'Settlement (SGD)',
+                        day: 'Day', lang_btn: '繁中'
+                    }
+                };
+
+                const t = (key) => i18n[lang.value][key];
+                const toggleLang = () => {
+                    lang.value = lang.value === 'zh' ? 'en' : 'zh';
+                    localStorage.setItem('app_lang', lang.value);
+                };
+
+                // --- Firebase 邏輯 ---
                 const dbItinerary = ref(db, 'itinerary');
                 const dbExpenses = ref(db, 'expenses');
 
-                const lang = vRef(localStorage.getItem('app_lang') || 'zh');
-// 語言字典
-const translations = {
-    zh: {
-        itinerary: '行程',
-        split: '分帳',
-        add: '新增',
-        total: '總支出',
-        rate: '匯率',
-        syncing: '同步中...',
-        placeholder_loc: '地點名稱',
-        settlement: '結算方案',
-        delete_confirm: '確定要刪除嗎？',
-        lang_toggle: 'English'
-    },
-    en: {
-        itinerary: 'Itinerary',
-        split: 'Split Bill',
-        add: 'Add',
-        total: 'Total',
-        rate: 'Rate',
-        syncing: 'Syncing...',
-        placeholder_loc: 'Location name',
-        settlement: 'Settlement',
-        delete_confirm: 'Are you sure to delete?',
-        lang_toggle: '繁中'
-    }
-};
-
-const t = (key) => translations[lang.value][key];
-
-const toggleLang = () => {
-    lang.value = lang.value === 'zh' ? 'en' : 'zh';
-    localStorage.setItem('app_lang', lang.value);
-};
-
                 onMounted(() => {
-                    // 1. 同步行程數據
-                    onValue(dbItinerary, (snapshot) => {
-                        const val = snapshot.val();
+                    onValue(dbItinerary, (snap) => {
+                        const val = snap.val();
                         itinerary.value = val ? Object.values(val) : [];
                         isSyncing.value = false;
                         refreshIcons();
                     });
-
-                    // 2. 同步分帳數據
-                    onValue(dbExpenses, (snapshot) => {
-                        const val = snapshot.val();
+                    onValue(dbExpenses, (snap) => {
+                        const val = snap.val();
                         expenses.value = val ? Object.values(val) : [];
                     });
-
-                    // 3. 獲取新加坡幣匯率 (SGD to TWD)
                     fetch('https://open.er-api.com/v6/latest/SGD')
                         .then(r => r.json()).then(d => exchangeRate.value = d.rates.TWD.toFixed(2));
                 });
 
-                // --- 行程功能 ---
+                // --- 功能操作 ---
                 const addItem = () => {
                     const newRef = push(dbItinerary);
-                    set(newRef, { id: newRef.key, day: selectedDay.value, time: '10:00', loc: '', note: '' });
+                    set(newRef, { id: newRef.key, day: selectedDay.value, time: '10:00', loc: '' });
                 };
+                const updateItem = (item) => update(ref(db, `itinerary/${item.id}`), item);
+                const deleteItem = (id) => { if(confirm(t('del_msg'))) remove(ref(db, `itinerary/${id}`)); };
 
-                const updateItem = (item) => {
-                    update(ref(db, `itinerary/${item.id}`), item);
-                };
-
-                const deleteItem = (id) => {
-                    if(confirm('確定要刪除這個行程嗎？朋友那邊也會同步刪除喔！')) {
-                        remove(ref(db, `itinerary/${id}`));
-                    }
-                };
-
-                // --- 分帳功能 ---
-                const addExpense = () => {
+                const addExp = () => {
                     if(!newExp.value.name || !newExp.value.amt) return;
-                    // 將外幣轉換為 SGD 存儲
                     const rate = newExp.value.currency === 'SGD' ? 1 : exchangeRate.value;
                     const sgdAmt = newExp.value.amt / rate;
-                    
                     const newRef = push(dbExpenses);
-                    set(newRef, {
-                        id: newRef.key,
-                        payer: newExp.value.name,
-                        amount: newExp.value.amt,
-                        currency: newExp.value.currency,
-                        sgdAmt: sgdAmt
-                    });
+                    set(newRef, { id: newRef.key, payer: newExp.value.name, amount: newExp.value.amt, currency: newExp.value.currency, sgdAmt: sgdAmt });
                     newExp.value = { name: '', amt: null, currency: 'TWD' };
                 };
 
-                const removeExpense = (id) => remove(ref(db, `expenses/${id}`));
-
-                // --- 計算屬性 ---
-                const filteredItinerary = computed(() => {
-                    return itinerary.value.filter(i => i.day === selectedDay.value).sort((a,b) => a.time.localeCompare(b.time));
-                });
-
+                const filteredItinerary = computed(() => itinerary.value.filter(i => i.day === selectedDay.value).sort((a,b) => a.time.localeCompare(b.time)));
                 const totalSgd = computed(() => expenses.value.reduce((s, e) => s + e.sgdAmt, 0));
 
                 const settlements = computed(() => {
-                    const bal = {}; 
-                    expenses.value.forEach(e => bal[e.payer] = (bal[e.payer] || 0) + e.sgdAmt);
+                    const bal = {}; expenses.value.forEach(e => bal[e.payer] = (bal[e.payer] || 0) + e.sgdAmt);
                     const names = Object.keys(bal); if(names.length < 2) return [];
                     const avg = totalSgd.value / names.length;
-                    let d = [], c = [];
-                    names.forEach(n => {
+                    let d = [], c = []; names.forEach(n => {
                         let diff = bal[n] - avg;
-                        if(diff > 0) c.push({n, amt: diff});
-                        else if(diff < 0) d.push({n, amt: Math.abs(diff)});
+                        if(diff > 0) c.push({n, amt: diff}); else if(diff < 0) d.push({n, amt: Math.abs(diff)});
                     });
                     let res = [], i = 0, j = 0;
                     while(i < d.length && j < c.length) {
@@ -164,13 +120,9 @@ const toggleLang = () => {
                 });
 
                 const refreshIcons = () => setTimeout(() => lucide.createIcons(), 50);
-                watch([activeTab, selectedDay], refreshIcons);
+                watch([activeTab, selectedDay, lang], refreshIcons);
 
-                return { 
-                    lang, activeTab, selectedDay, isSyncing, itinerary, filteredItinerary, 
-                    addItem, updateItem, deleteItem, expenses, newExp, addExpense, removeExpense, 
-                    totalSgd, settlements, exchangeRate 
-                };
+                return { t, lang, toggleLang, activeTab, selectedDay, isSyncing, filteredItinerary, addItem, updateItem, deleteItem, expenses, newExp, addExp, totalSgd, settlements, exchangeRate };
             }
         }).mount('#app');
     </script>
@@ -186,23 +138,27 @@ const toggleLang = () => {
         
         <div v-if="isSyncing" class="absolute inset-0 bg-white/90 z-[100] flex flex-col items-center justify-center">
             <div class="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-            <p class="mt-4 text-xs tracking-widest text-emerald-800">與旅伴同步中...</p>
+            <p class="mt-4 text-[10px] tracking-widest text-emerald-800 uppercase">{{ t('sync') }}</p>
         </div>
 
         <header class="p-6">
-            <button @click="toggleLang" class="text-[10px] border border-slate-200 px-2 py-1 rounded-full text-slate-400 hover:bg-slate-50 transition-colors uppercase tracking-widest">
-                {{ t('lang_toggle') }}
-            </button>
             <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-light tracking-tighter text-slate-800">Taiwan Trip <span class="text-[10px] text-emerald-600 ml-2">● LIVE</span></h1>
-                <button @click="addItem" class="lake-teal text-white p-2 rounded-full shadow-lg active:scale-90 transition-transform"><i data-lucide="plus"></i></button>
+                <div>
+                    <h1 class="text-2xl font-light tracking-tighter text-slate-800">{{ t('title') }}</h1>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button @click="toggleLang" class="text-[10px] border px-2 py-1 rounded-full text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-colors">
+                        {{ t('lang_btn') }}
+                    </button>
+                    <button @click="addItem" class="lake-teal text-white p-2 rounded-full shadow-lg active:scale-90 transition-transform"><i data-lucide="plus"></i></button>
+                </div>
             </div>
             
             <div class="flex overflow-x-auto hide-scrollbar gap-4 py-2 text-center">
                 <div v-for="n in 7" :key="n" @click="selectedDay = n"
                      :class="selectedDay === n ? 'date-active shadow-md' : 'bg-slate-50 text-slate-300'"
                      class="flex-shrink-0 w-12 h-16 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer">
-                    {{ t('itinerary') }}
+                    <span class="text-[8px] uppercase">{{ t('day') }}</span>
                     <span class="text-lg font-bold">{{n}}</span>
                 </div>
             </div>
@@ -215,30 +171,33 @@ const toggleLang = () => {
                         <input type="time" v-model="item.time" @change="updateItem(item)" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg outline-none">
                         <button @click="deleteItem(item.id)" class="text-slate-200 group-hover:text-red-300 transition-colors">✕</button>
                     </div>
-                    <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('placeholder_loc')" class="w-full text-base font-normal outline-none bg-transparent">
+                    <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('loc_p')" class="w-full text-base font-normal outline-none bg-transparent">
                 </div>
             </div>
 
             <div v-if="activeTab === 'split'" class="space-y-6">
                 <div class="lake-teal p-8 rounded-[2.5rem] text-white shadow-xl">
-                    <p class="text-[10px] opacity-60 uppercase tracking-widest mb-1">Total (SGD)</p>
+                    <p class="text-[10px] opacity-60 uppercase tracking-widest mb-1">{{ t('total') }}</p>
                     <h2 class="text-4xl font-light tracking-tighter mb-2">S$ {{ totalSgd.toFixed(2) }}</h2>
-                    <p class="text-[10px] opacity-40 italic font-light">1 SGD ≈ {{exchangeRate}} TWD</p>
+                    <p class="text-[10px] opacity-40 italic font-light">{{ t('rate') }}: 1 SGD ≈ {{exchangeRate}} TWD</p>
                 </div>
 
                 <div class="bg-slate-50 p-5 rounded-3xl space-y-3">
                     <div class="flex gap-2">
-                        <input v-model="newExp.name" placeholder="付款人" class="flex-1 bg-white p-3 rounded-xl text-sm outline-none">
+                        <input v-model="newExp.name" :placeholder="t('payer')" class="flex-1 bg-white p-3 rounded-xl text-sm outline-none">
                         <select v-model="newExp.currency" class="bg-white p-3 rounded-xl text-xs outline-none">
                             <option value="TWD">TWD</option>
                             <option value="SGD">SGD</option>
                         </select>
                     </div>
-                    <input v-model.number="newExp.amt" type="number" placeholder="金額" class="w-full bg-white p-3 rounded-xl text-sm outline-none">
-                    <button @click="addExp" class="w-full bg-slate-800 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all">新增支出紀錄</button>
+                    <input v-model.number="newExp.amt" type="number" :placeholder="t('amt')" class="w-full bg-white p-3 rounded-xl text-sm outline-none">
+                    <button @click="addExp" class="w-full bg-slate-800 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                        {{ t('confirm') }}
+                    </button>
                 </div>
 
                 <div class="space-y-2">
+                    <p class="text-[10px] text-slate-300 uppercase tracking-widest">{{ t('settle') }}</p>
                     <div v-for="s in settlements" class="flex justify-between items-center p-4 bg-emerald-50/50 rounded-2xl">
                         <span class="text-xs font-medium">{{s.from}} → {{s.to}}</span>
                         <span class="font-bold text-emerald-800 text-sm">S$ {{s.amt}}</span>
