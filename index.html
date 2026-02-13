@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>2026 Taiwan Trip</title>
+    <title>2026 Taiwan Road Trip</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -12,7 +12,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // 已填入你提供的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyBYnROoZixE4LbeOlbxXCOs9TUUxHy8qn0",
             authDomain: "taiwantrip2026-b1e8f.firebaseapp.com",
@@ -36,13 +35,11 @@
                 const exchangeRate = vRef(24.5);
                 const itinerary = vRef([]);
                 const expenses = vRef([]);
-                
-                // 更新：新增支出項目名稱欄位 (note)
                 const newExp = vRef({ name: '', amt: null, currency: 'TWD', note: '' });
 
                 const i18n = {
-                    zh: { title: '旅程日誌', live: '同步中', add: '＋新增項目', del_msg: '確定要刪除嗎？', loc_p: '想去哪裡？', total: '團隊支出的結算', rate: '即時匯率', payer: '付款人', amt: '金額', item_name: '支出項目 (如: 晚餐)', confirm: '記錄這筆支出', settle: '結算建議', history: '支出明細', lang_btn: 'EN' },
-                    en: { title: 'Travel Log', live: 'LIVE', add: '+ New Item', del_msg: 'Delete?', loc_p: 'Where to go?', total: 'Total Expenses', rate: 'Est. Rate', payer: 'Payer', amt: 'Amount', item_name: 'Item (e.g. Dinner)', confirm: 'Record', settle: 'Settlement', history: 'History', lang_btn: '繁中' }
+                    zh: { title: '旅程日誌', live: '同步中', traffic: '即時路況', add: '＋新增項目', del_msg: '確定要刪除嗎？', loc_p: '想去哪裡？', total: '團隊總結算', rate: '即時匯率', payer: '付款人', amt: '金額', item_name: '項目 (如: 晚餐)', confirm: '記錄支出', settle: '結算建議', history: '支出明細', lang_btn: 'EN' },
+                    en: { title: 'Travel Log', live: 'LIVE', traffic: 'Traffic', add: '+ New Item', del_msg: 'Delete?', loc_p: 'Location...', total: 'Total Expenses', rate: 'Rate', payer: 'Name', amt: 'Amount', item_name: 'Item', confirm: 'Record', settle: 'Settlement', history: 'History', lang_btn: '繁中' }
                 };
 
                 const t = (key) => i18n[lang.value][key];
@@ -51,8 +48,43 @@
                 const dbItinerary = ref(db, 'itinerary');
                 const dbExpenses = ref(db, 'expenses');
 
+                const initialData = [
+                    { day: 1, time: "09:00", loc: "中壢出發 (自駕啟程)" },
+                    { day: 1, time: "11:00", loc: "苗栗銅鑼杭菊花田" },
+                    { day: 1, time: "12:30", loc: "台中審計新村 (午餐)" },
+                    { day: 1, time: "16:00", loc: "安平古堡 & 神農街" },
+                    { day: 1, time: "19:00", loc: "煙波大飯店 台南館 (入住)" },
+                    { day: 2, time: "09:30", loc: "台南出發 → 高雄" },
+                    { day: 2, time: "11:00", loc: "鳳山黃埔新村" },
+                    { day: 2, time: "13:30", loc: "枋山海岸線 (海景咖啡)" },
+                    { day: 2, time: "16:00", loc: "鵝鑾鼻燈塔 & 龍磐草原" },
+                    { day: 2, time: "18:30", loc: "日和灣居 & 墾丁大街" },
+                    { day: 3, time: "10:00", loc: "墾丁龍磐看海 → 往北" },
+                    { day: 3, time: "13:00", loc: "台南玉井 (吃芒果冰)" },
+                    { day: 3, time: "16:00", loc: "嘉義檜意森活村" },
+                    { day: 3, time: "18:00", loc: "桔子商旅 & 文化路夜市" },
+                    { day: 4, time: "09:30", loc: "嘉義出發 → 南投" },
+                    { day: 4, time: "11:00", loc: "集集老街散步" },
+                    { day: 4, time: "14:00", loc: "日月潭搭船遊湖" },
+                    { day: 4, time: "16:30", loc: "明月湖旅店 (入住)" },
+                    { day: 5, time: "10:00", loc: "環湖自行車道" },
+                    { day: 5, time: "13:00", loc: "九族文化村 (纜車)" },
+                    { day: 6, time: "10:00", loc: "日月潭出發 → 台中" },
+                    { day: 6, time: "12:30", loc: "台中春水堂創始店" },
+                    { day: 6, time: "18:00", loc: "返抵中壢" }
+                ];
+
                 onMounted(() => {
-                    onValue(dbItinerary, (snap) => { itinerary.value = snap.val() ? Object.values(snap.val()) : []; isSyncing.value = false; refreshIcons(); });
+                    onValue(dbItinerary, (snap) => {
+                        const val = snap.val();
+                        if (!val) {
+                            initialData.forEach(item => {
+                                const newRef = push(dbItinerary);
+                                set(newRef, { ...item, id: newRef.key });
+                            });
+                        } else { itinerary.value = Object.values(val); }
+                        isSyncing.value = false; refreshIcons();
+                    });
                     onValue(dbExpenses, (snap) => { expenses.value = snap.val() ? Object.values(snap.val()) : []; refreshIcons(); });
                     fetch('https://open.er-api.com/v6/latest/SGD').then(r => r.json()).then(d => exchangeRate.value = d.rates.TWD.toFixed(2));
                 });
@@ -60,26 +92,17 @@
                 const addItem = () => { const newRef = push(dbItinerary); set(newRef, { id: newRef.key, day: selectedDay.value, time: '12:00', loc: '' }); };
                 const updateItem = (item) => update(ref(db, `itinerary/${item.id}`), item);
                 const deleteItem = (id) => { if(confirm(t('del_msg'))) remove(ref(db, `itinerary/${id}`)); };
+                const openTraffic = () => window.open('https://1968.freeway.gov.tw/n_traffic', '_blank');
 
                 const addExp = () => {
                     if(!newExp.value.name || !newExp.value.amt) return;
-                    const rate = newExp.value.currency === 'SGD' ? 1 : exchangeRate.value;
-                    const sgdAmt = newExp.value.amt / rate;
+                    const sgdAmt = newExp.value.amt / (newExp.value.currency === 'SGD' ? 1 : exchangeRate.value);
                     const newRef = push(dbExpenses);
-                    set(newRef, { 
-                        id: newRef.key, 
-                        payer: newExp.value.name, 
-                        amount: newExp.value.amt, 
-                        currency: newExp.value.currency, 
-                        sgdAmt: sgdAmt,
-                        note: newExp.value.note || '未分類支出' // 儲存項目名稱
-                    });
+                    set(newRef, { id: newRef.key, payer: newExp.value.name, amount: newExp.value.amt, currency: newExp.value.currency, sgdAmt: sgdAmt, note: newExp.value.note || '支出' });
                     newExp.value = { name: '', amt: null, currency: 'TWD', note: '' };
                 };
-
                 const updateExpense = (exp) => {
-                    const rate = exp.currency === 'SGD' ? 1 : exchangeRate.value;
-                    exp.sgdAmt = exp.amount / rate;
+                    exp.sgdAmt = exp.amount / (exp.currency === 'SGD' ? 1 : exchangeRate.value);
                     update(ref(db, `expenses/${exp.id}`), exp);
                 };
                 const deleteExpense = (id) => { if(confirm(t('del_msg'))) remove(ref(db, `expenses/${id}`)); };
@@ -103,7 +126,7 @@
                 const refreshIcons = () => setTimeout(() => lucide.createIcons(), 50);
                 watch([activeTab, selectedDay, lang], refreshIcons);
 
-                return { t, lang, toggleLang, activeTab, selectedDay, isSyncing, filteredItinerary, addItem, updateItem, deleteItem, expenses, newExp, addExp, updateExpense, deleteExpense, totalSgd, settlements, exchangeRate };
+                return { t, lang, toggleLang, activeTab, selectedDay, isSyncing, filteredItinerary, addItem, updateItem, deleteItem, openTraffic, expenses, newExp, addExp, updateExpense, deleteExpense, totalSgd, settlements, exchangeRate };
             }
         }).mount('#app');
     </script>
@@ -113,22 +136,16 @@
         :root { --tiffany: #81D8D0; --bg: #f8f9fa; }
         body { font-family: 'Noto Sans TC', sans-serif; background-color: var(--bg); color: #333; }
         .font-serif { font-family: 'Noto Serif TC', serif; }
-        .tiffany-text { color: var(--tiffany); }
         .tiffany-bg { background-color: var(--tiffany); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-top: 1px solid rgba(0,0,0,0.05); }
-        .day-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .day-active { background-color: var(--tiffany); color: white; transform: translateY(-3px); box-shadow: 0 8px 15px rgba(129, 216, 208, 0.4); }
         .card-mag { border-radius: 24px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.02); }
     </style>
 </head>
-<body class="antialiased text-sm">
-    <div id="app" class="max-w-md mx-auto min-h-screen bg-[#f8f9fa] shadow-2xl flex flex-col relative overflow-hidden pb-32">
+<body class="antialiased text-sm pb-32">
+    <div id="app" class="max-w-md mx-auto min-h-screen bg-[#f8f9fa] flex flex-col relative overflow-hidden">
         
-        <div v-if="isSyncing" class="absolute inset-0 bg-white/90 z-[100] flex flex-col items-center justify-center">
-            <div class="w-6 h-6 border-2 border-[#81D8D0] border-t-transparent rounded-full animate-spin"></div>
-        </div>
-
         <header class="pt-12 pb-6 px-8 bg-white rounded-b-[40px] shadow-sm">
             <div class="flex justify-between items-start mb-8">
                 <div>
@@ -138,94 +155,57 @@
                         <span class="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">{{ t('live') }}</span>
                     </div>
                 </div>
-                <button @click="toggleLang" class="text-[10px] font-bold border-b border-slate-200 pb-1 text-slate-400">
-                    {{ t('lang_btn') }}
-                </button>
+                <button @click="toggleLang" class="text-[10px] font-bold border-b border-slate-200 pb-1 text-slate-400">{{ t('lang_btn') }}</button>
             </div>
-            
             <div class="flex overflow-x-auto hide-scrollbar gap-5 py-2 px-1">
-                <div v-for="n in 7" :key="n" @click="selectedDay = n"
-                     :class="selectedDay === n ? 'day-active' : 'bg-slate-50 text-slate-300'"
-                     class="day-btn flex-shrink-0 cursor-pointer font-bold text-sm">
-                    {{n}}
-                </div>
+                <div v-for="n in 7" :key="n" @click="selectedDay = n" :class="selectedDay === n ? 'day-active' : 'bg-slate-50 text-slate-300'" class="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center font-bold transition-all">{{n}}</div>
             </div>
         </header>
 
         <main class="flex-1 px-8 pt-8 overflow-y-auto">
-            
             <div v-if="activeTab === 'itinerary'" class="space-y-6">
                 <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xs font-bold uppercase tracking-widest text-slate-300 italic">Today's Plan</h2>
+                    <button @click="openTraffic" class="bg-slate-800 text-white px-4 py-2 rounded-full text-[10px] font-bold tracking-widest flex items-center gap-2">
+                        <i data-lucide="car"></i> {{ t('traffic') }}
+                    </button>
                     <button @click="addItem" class="text-[#81D8D0] font-bold text-xs">{{ t('add') }}</button>
                 </div>
                 <div v-for="item in filteredItinerary" :key="item.id" class="card-mag p-6 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <span class="text-[10px] font-black text-[#81D8D0] uppercase">Time</span>
-                            <input type="time" v-model="item.time" @change="updateItem(item)" class="text-sm font-bold text-slate-600 outline-none bg-slate-50 px-2 py-1 rounded-lg">
-                        </div>
-                        <button @click="deleteItem(item.id)" class="text-slate-200 hover:text-red-300"><i data-lucide="x-circle" class="w-4 h-4"></i></button>
+                        <input type="time" v-model="item.time" @change="updateItem(item)" class="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-lg outline-none">
+                        <button @click="deleteItem(item.id)" class="text-slate-200"><i data-lucide="x-circle"></i></button>
                     </div>
-                    <div class="space-y-1">
-                        <span class="text-[10px] font-black text-slate-300 uppercase tracking-tighter">Location</span>
-                        <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('loc_p')" class="w-full text-xl font-bold text-slate-700 outline-none placeholder:text-slate-200">
-                    </div>
+                    <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('loc_p')" class="w-full text-xl font-bold text-slate-700 bg-transparent outline-none">
                 </div>
             </div>
 
             <div v-if="activeTab === 'split'" class="space-y-8">
-                <div class="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+                <div class="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 relative overflow-hidden">
                     <p class="text-[10px] font-black text-[#81D8D0] uppercase tracking-widest mb-2">{{ t('total') }}</p>
                     <h2 class="text-4xl font-serif text-slate-800">S$ {{ totalSgd.toFixed(2) }}</h2>
-                    <p class="text-[9px] text-slate-400 mt-2 font-bold">1 SGD ≈ {{exchangeRate}} TWD</p>
+                    <p class="text-[9px] text-slate-400 mt-2 font-bold italic">1 SGD ≈ {{exchangeRate}} TWD</p>
                 </div>
-
                 <div class="space-y-3">
-                    <input v-model="newExp.note" :placeholder="t('item_name')" class="w-full bg-white p-4 rounded-2xl text-sm outline-none border border-slate-50 shadow-sm font-medium">
+                    <input v-model="newExp.note" :placeholder="t('item_name')" class="w-full bg-white p-4 rounded-2xl text-sm outline-none border shadow-sm">
                     <div class="grid grid-cols-2 gap-3">
-                        <input v-model="newExp.name" :placeholder="t('payer')" class="bg-white p-4 rounded-2xl text-sm outline-none border border-slate-50 shadow-sm">
-                        <select v-model="newExp.currency" class="bg-white p-4 rounded-2xl text-xs font-bold text-[#81D8D0] outline-none border border-slate-50">
-                            <option value="TWD">TWD</option>
-                            <option value="SGD">SGD</option>
+                        <input v-model="newExp.name" :placeholder="t('payer')" class="bg-white p-4 rounded-2xl text-sm outline-none border shadow-sm">
+                        <select v-model="newExp.currency" class="bg-white p-4 rounded-2xl text-xs font-bold text-[#81D8D0] outline-none border">
+                            <option value="TWD">TWD</option><option value="SGD">SGD</option>
                         </select>
                     </div>
-                    <input v-model.number="newExp.amt" type="number" :placeholder="t('amt')" class="w-full bg-white p-4 rounded-2xl text-sm outline-none border border-slate-50 shadow-sm">
-                    <button @click="addExp" class="w-full tiffany-bg text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">
-                        {{ t('confirm') }}
-                    </button>
+                    <input v-model.number="newExp.amt" type="number" :placeholder="t('amt')" class="w-full bg-white p-4 rounded-2xl text-sm outline-none border shadow-sm">
+                    <button @click="addExp" class="w-full tiffany-bg text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">{{ t('confirm') }}</button>
                 </div>
-
                 <div class="space-y-4">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 px-1">{{ t('history') }}</h3>
                     <div v-for="e in expenses" :key="e.id" class="card-mag p-6 flex flex-col gap-3">
                         <div class="flex justify-between items-start">
-                            <div class="flex flex-col">
-                                <input v-model="e.note" @blur="updateExpense(e)" class="text-sm font-bold text-slate-800 outline-none bg-transparent">
-                                <span class="text-[10px] text-[#81D8D0] font-black uppercase tracking-widest mt-1">{{ e.payer }}</span>
-                            </div>
-                            <button @click="deleteExpense(e.id)" class="text-slate-200"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                            <div class="flex flex-col"><input v-model="e.note" @blur="updateExpense(e)" class="font-bold text-slate-800 bg-transparent outline-none text-sm"><span class="text-[9px] text-[#81D8D0] font-black uppercase mt-1">{{ e.payer }}</span></div>
+                            <button @click="deleteExpense(e.id)" class="text-slate-200"><i data-lucide="minus"></i></button>
                         </div>
                         <div class="flex justify-between items-end">
-                            <div class="flex items-center gap-1.5">
-                                <input v-model.number="e.amount" @blur="updateExpense(e)" type="number" class="text-2xl font-serif text-slate-700 w-24 bg-transparent outline-none">
-                                <span class="text-[9px] font-bold text-slate-300 uppercase">{{ e.currency }}</span>
-                            </div>
+                            <div class="flex items-center gap-1.5"><input v-model.number="e.amount" @blur="updateExpense(e)" type="number" class="text-2xl font-serif text-slate-700 w-24 bg-transparent outline-none"><span class="text-[9px] font-bold text-slate-300 uppercase">{{ e.currency }}</span></div>
                             <span class="text-[10px] text-slate-400 font-medium italic">S$ {{ e.sgdAmt.toFixed(2) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="settlements.length > 0" class="pt-6">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 px-1 mb-4">{{ t('settle') }}</h3>
-                    <div class="space-y-2">
-                        <div v-for="s in settlements" class="flex justify-between items-center p-5 bg-[#81D8D0]/5 rounded-3xl border border-[#81D8D0]/10">
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs font-bold text-slate-600">{{s.from}}</span>
-                                <i data-lucide="arrow-right" class="w-3 h-3 text-[#81D8D0]"></i>
-                                <span class="text-xs font-bold text-slate-600">{{s.to}}</span>
-                            </div>
-                            <span class="font-serif font-bold text-[#6abfb7]">S$ {{s.amt}}</span>
                         </div>
                     </div>
                 </div>
@@ -233,14 +213,8 @@
         </main>
 
         <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-24 glass-nav flex justify-around items-center px-12 z-50">
-            <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1">
-                <i data-lucide="compass" class="w-6 h-6"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest">{{ lang === 'zh' ? '行程' : 'Plan' }}</span>
-            </button>
-            <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1">
-                <i data-lucide="wallet" class="w-6 h-6"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest">{{ lang === 'zh' ? '分帳' : 'Cash' }}</span>
-            </button>
+            <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1"><i data-lucide="compass" class="w-6 h-6"></i><span class="text-[9px] font-bold uppercase">{{ lang === 'zh' ? '行程' : 'Plan' }}</span></button>
+            <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1"><i data-lucide="wallet" class="w-6 h-6"></i><span class="text-[9px] font-bold uppercase">{{ lang === 'zh' ? '分帳' : 'Cash' }}</span></button>
         </nav>
     </div>
 </body>
