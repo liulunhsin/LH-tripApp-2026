@@ -12,7 +12,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // ⚠️ 請在此填入你的 Firebase Config ⚠️
+        // 已填入你提供的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyBYnROoZixE4LbeOlbxXCOs9TUUxHy8qn0",
             authDomain: "taiwantrip2026-b1e8f.firebaseapp.com",
@@ -36,11 +36,13 @@
                 const exchangeRate = vRef(24.5);
                 const itinerary = vRef([]);
                 const expenses = vRef([]);
-                const newExp = vRef({ name: '', amt: null, currency: 'TWD' });
+                
+                // 更新：新增支出項目名稱欄位 (note)
+                const newExp = vRef({ name: '', amt: null, currency: 'TWD', note: '' });
 
                 const i18n = {
-                    zh: { title: '旅程日誌', live: '同步中', add: '＋新增項目', del_msg: '確定要刪除嗎？', loc_p: '想去哪裡？', total: '團隊支出的結算', rate: '即時匯率', payer: '付款人', amt: '金額', confirm: '記錄這筆支出', settle: '結算建議', history: '支出明細', lang_btn: 'EN' },
-                    en: { title: 'Travel Log', live: 'LIVE', add: '+ New Item', del_msg: 'Delete?', loc_p: 'Where to go?', total: 'Total Expenses', rate: 'Est. Rate', payer: 'Payer', amt: 'Amount', confirm: 'Record', settle: 'Settlement', history: 'History', lang_btn: '繁中' }
+                    zh: { title: '旅程日誌', live: '同步中', add: '＋新增項目', del_msg: '確定要刪除嗎？', loc_p: '想去哪裡？', total: '團隊支出的結算', rate: '即時匯率', payer: '付款人', amt: '金額', item_name: '支出項目 (如: 晚餐)', confirm: '記錄這筆支出', settle: '結算建議', history: '支出明細', lang_btn: 'EN' },
+                    en: { title: 'Travel Log', live: 'LIVE', add: '+ New Item', del_msg: 'Delete?', loc_p: 'Where to go?', total: 'Total Expenses', rate: 'Est. Rate', payer: 'Payer', amt: 'Amount', item_name: 'Item (e.g. Dinner)', confirm: 'Record', settle: 'Settlement', history: 'History', lang_btn: '繁中' }
                 };
 
                 const t = (key) => i18n[lang.value][key];
@@ -64,8 +66,15 @@
                     const rate = newExp.value.currency === 'SGD' ? 1 : exchangeRate.value;
                     const sgdAmt = newExp.value.amt / rate;
                     const newRef = push(dbExpenses);
-                    set(newRef, { id: newRef.key, payer: newExp.value.name, amount: newExp.value.amt, currency: newExp.value.currency, sgdAmt: sgdAmt });
-                    newExp.value = { name: '', amt: null, currency: 'TWD' };
+                    set(newRef, { 
+                        id: newRef.key, 
+                        payer: newExp.value.name, 
+                        amount: newExp.value.amt, 
+                        currency: newExp.value.currency, 
+                        sgdAmt: sgdAmt,
+                        note: newExp.value.note || '未分類支出' // 儲存項目名稱
+                    });
+                    newExp.value = { name: '', amt: null, currency: 'TWD', note: '' };
                 };
 
                 const updateExpense = (exp) => {
@@ -101,24 +110,20 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
-        
-        :root { --tiffany: #81D8D0; --tiffany-dark: #6abfb7; --bg: #f8f9fa; }
+        :root { --tiffany: #81D8D0; --bg: #f8f9fa; }
         body { font-family: 'Noto Sans TC', sans-serif; background-color: var(--bg); color: #333; }
         .font-serif { font-family: 'Noto Serif TC', serif; }
         .tiffany-text { color: var(--tiffany); }
         .tiffany-bg { background-color: var(--tiffany); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-top: 1px solid rgba(0,0,0,0.05); }
-        
-        /* 雜誌感排版 */
-        .day-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-center: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .day-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .day-active { background-color: var(--tiffany); color: white; transform: translateY(-3px); box-shadow: 0 8px 15px rgba(129, 216, 208, 0.4); }
-        .itinerary-card { border-radius: 24px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.02); transition: transform 0.2s; }
-        .itinerary-card:active { transform: scale(0.98); }
+        .card-mag { border-radius: 24px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.02); }
     </style>
 </head>
-<body class="antialiased">
-    <div id="app" class="max-w-md mx-auto min-h-screen bg-[#f8f9fa] shadow-2xl flex flex-col relative overflow-hidden">
+<body class="antialiased text-sm">
+    <div id="app" class="max-w-md mx-auto min-h-screen bg-[#f8f9fa] shadow-2xl flex flex-col relative overflow-hidden pb-32">
         
         <div v-if="isSyncing" class="absolute inset-0 bg-white/90 z-[100] flex flex-col items-center justify-center">
             <div class="w-6 h-6 border-2 border-[#81D8D0] border-t-transparent rounded-full animate-spin"></div>
@@ -133,7 +138,7 @@
                         <span class="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">{{ t('live') }}</span>
                     </div>
                 </div>
-                <button @click="toggleLang" class="text-[10px] font-bold border-b border-slate-200 pb-1 text-slate-400 hover:text-[#81D8D0] transition-colors">
+                <button @click="toggleLang" class="text-[10px] font-bold border-b border-slate-200 pb-1 text-slate-400">
                     {{ t('lang_btn') }}
                 </button>
             </div>
@@ -147,15 +152,14 @@
             </div>
         </header>
 
-        <main class="flex-1 px-8 pt-8 pb-32 overflow-y-auto">
+        <main class="flex-1 px-8 pt-8 overflow-y-auto">
             
             <div v-if="activeTab === 'itinerary'" class="space-y-6">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-xs font-bold uppercase tracking-widest text-slate-300 italic">Today's Plan</h2>
                     <button @click="addItem" class="text-[#81D8D0] font-bold text-xs">{{ t('add') }}</button>
                 </div>
-
-                <div v-for="item in filteredItinerary" :key="item.id" class="itinerary-card p-6 flex flex-col gap-4">
+                <div v-for="item in filteredItinerary" :key="item.id" class="card-mag p-6 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
                             <span class="text-[10px] font-black text-[#81D8D0] uppercase">Time</span>
@@ -168,26 +172,17 @@
                         <input v-model="item.loc" @blur="updateItem(item)" :placeholder="t('loc_p')" class="w-full text-xl font-bold text-slate-700 outline-none placeholder:text-slate-200">
                     </div>
                 </div>
-                <div v-if="filteredItinerary.length === 0" class="py-20 text-center text-slate-300 italic text-sm font-light">
-                    今日暫無規劃行程...
-                </div>
             </div>
 
             <div v-if="activeTab === 'split'" class="space-y-8">
                 <div class="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                    <div class="relative z-10">
-                        <p class="text-[10px] font-black text-[#81D8D0] uppercase tracking-widest mb-2">{{ t('total') }}</p>
-                        <h2 class="text-4xl font-serif text-slate-800">S$ {{ totalSgd.toFixed(2) }}</h2>
-                        <div class="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4">
-                            <div class="text-[9px] text-slate-400">
-                                <span class="font-bold">1 SGD</span> ≈ {{exchangeRate}} TWD
-                            </div>
-                        </div>
-                    </div>
-                    <div class="absolute right-[-10%] top-[-10%] w-32 h-32 bg-[#81D8D0]/5 rounded-full"></div>
+                    <p class="text-[10px] font-black text-[#81D8D0] uppercase tracking-widest mb-2">{{ t('total') }}</p>
+                    <h2 class="text-4xl font-serif text-slate-800">S$ {{ totalSgd.toFixed(2) }}</h2>
+                    <p class="text-[9px] text-slate-400 mt-2 font-bold">1 SGD ≈ {{exchangeRate}} TWD</p>
                 </div>
 
-                <div class="space-y-4">
+                <div class="space-y-3">
+                    <input v-model="newExp.note" :placeholder="t('item_name')" class="w-full bg-white p-4 rounded-2xl text-sm outline-none border border-slate-50 shadow-sm font-medium">
                     <div class="grid grid-cols-2 gap-3">
                         <input v-model="newExp.name" :placeholder="t('payer')" class="bg-white p-4 rounded-2xl text-sm outline-none border border-slate-50 shadow-sm">
                         <select v-model="newExp.currency" class="bg-white p-4 rounded-2xl text-xs font-bold text-[#81D8D0] outline-none border border-slate-50">
@@ -203,14 +198,17 @@
 
                 <div class="space-y-4">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 px-1">{{ t('history') }}</h3>
-                    <div v-for="e in expenses" :key="e.id" class="bg-white p-6 rounded-3xl shadow-sm border border-slate-50 flex flex-col gap-3">
-                        <div class="flex justify-between items-center">
-                            <input v-model="e.payer" @blur="updateExpense(e)" class="text-xs font-black text-slate-800 outline-none bg-transparent">
+                    <div v-for="e in expenses" :key="e.id" class="card-mag p-6 flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex flex-col">
+                                <input v-model="e.note" @blur="updateExpense(e)" class="text-sm font-bold text-slate-800 outline-none bg-transparent">
+                                <span class="text-[10px] text-[#81D8D0] font-black uppercase tracking-widest mt-1">{{ e.payer }}</span>
+                            </div>
                             <button @click="deleteExpense(e.id)" class="text-slate-200"><i data-lucide="minus" class="w-4 h-4"></i></button>
                         </div>
                         <div class="flex justify-between items-end">
                             <div class="flex items-center gap-1.5">
-                                <input v-model.number="e.amount" @blur="updateExpense(e)" type="number" class="text-2xl font-serif text-[#81D8D0] w-24 bg-transparent outline-none">
+                                <input v-model.number="e.amount" @blur="updateExpense(e)" type="number" class="text-2xl font-serif text-slate-700 w-24 bg-transparent outline-none">
                                 <span class="text-[9px] font-bold text-slate-300 uppercase">{{ e.currency }}</span>
                             </div>
                             <span class="text-[10px] text-slate-400 font-medium italic">S$ {{ e.sgdAmt.toFixed(2) }}</span>
@@ -235,16 +233,11 @@
         </main>
 
         <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-24 glass-nav flex justify-around items-center px-12 z-50">
-            <button @click="activeTab = 'itinerary'" 
-                    :class="activeTab === 'itinerary' ? 'text-[#81D8D0]' : 'text-slate-300'"
-                    class="flex flex-col items-center gap-1 transition-colors">
+            <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1">
                 <i data-lucide="compass" class="w-6 h-6"></i>
                 <span class="text-[9px] font-bold uppercase tracking-widest">{{ lang === 'zh' ? '行程' : 'Plan' }}</span>
             </button>
-            <div class="w-px h-8 bg-slate-100/50"></div>
-            <button @click="activeTab = 'split'" 
-                    :class="activeTab === 'split' ? 'text-[#81D8D0]' : 'text-slate-300'"
-                    class="flex flex-col items-center gap-1 transition-colors">
+            <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-[#81D8D0]' : 'text-slate-300'" class="flex flex-col items-center gap-1">
                 <i data-lucide="wallet" class="w-6 h-6"></i>
                 <span class="text-[9px] font-bold uppercase tracking-widest">{{ lang === 'zh' ? '分帳' : 'Cash' }}</span>
             </button>
